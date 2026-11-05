@@ -1,11 +1,12 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize, QUrl
 from PySide6.QtGui import (
-    QAction, QKeySequence, QFont, QColor, QPalette, QIcon, QPainter, QPixmap,
+    QAction, QKeySequence, QFont, QColor, QPalette, QIcon, QPainter,
 )
 from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -32,6 +33,7 @@ from app.ai_client import AIClient, extract_file_ops
 
 APP_DIR = Path(__file__).resolve().parent
 ICONS_DIR = APP_DIR / "app" / "icons"
+UI_DIR = APP_DIR / "app" / "ui"
 
 
 def svg_icon(name: str) -> QIcon:
@@ -154,16 +156,17 @@ class MainWindow(QMainWindow):
         ai_header_row.addStretch()
         right_layout.addLayout(ai_header_row)
 
-        self.chat_display = QTextEdit()
-        self.chat_display.setReadOnly(True)
-        self.chat_display.setStyleSheet("""
-            QTextEdit {
-                background: #1E1F29; color: #F8F8F2;
-                border: 1px solid #44475A; border-radius: 6px;
-                padding: 6px;
+        self.chat_view = QWebEngineView()
+        self.chat_view.setStyleSheet("""
+            QWebEngineView {
+                background: #1E1F29;
+                border: 1px solid #44475A;
+                border-radius: 6px;
             }
         """)
-        right_layout.addWidget(self.chat_display, 1)
+        chat_html_path = UI_DIR / "chat.html"
+        self.chat_view.setUrl(QUrl.fromLocalFile(str(chat_html_path)))
+        right_layout.addWidget(self.chat_view, 1)
 
         self.chat_input = QLineEdit()
         self.chat_input.setPlaceholderText("Ask AI... (Enter to send)")
@@ -185,7 +188,7 @@ class MainWindow(QMainWindow):
         self.btn_clear = QPushButton("Clear Chat")
         self.btn_send.clicked.connect(self._send_chat)
         self.btn_apply.clicked.connect(lambda: self._send_chat(apply=True))
-        self.btn_clear.clicked.connect(self.chat_display.clear)
+        self.btn_clear.clicked.connect(lambda: self.chat_view.page().runJavaScript("clearAll()"))
         btn_row.addWidget(self.btn_send)
         btn_row.addWidget(self.btn_apply)
         btn_row.addWidget(self.btn_clear)
@@ -419,18 +422,20 @@ class MainWindow(QMainWindow):
     def _append_output(self, text: str, color: str = "#F8F8F2"):
         self.output.append(f'<span style="color:{color}">{text}</span>')
 
+    def _chat_js(self, js: str):
+        self.chat_view.page().runJavaScript(js)
+
+    def _js_str(self, s: str) -> str:
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+
     def _send_chat(self, apply: bool = False):
         text = self.chat_input.text().strip()
         if not text:
             return
         self.chat_input.clear()
 
-        self.chat_display.append(
-            f'<span style="color:#8BE9FD;font-weight:bold">You:</span> {text}'
-        )
-        self.chat_display.append(
-            '<span style="color:#FF79C6;font-weight:bold">AI:</span> '
-        )
+        self._chat_js(f"appendUser('{self._js_str(text)}')")
+        self._chat_js("startAi()")
 
         current_editor = self._current_editor()
         context = ""
@@ -455,21 +460,17 @@ class MainWindow(QMainWindow):
             return self.ai.chat_stream(messages, on_chunk=on_chunk)
 
         def on_chunk(chunk: str):
-            cursor = self.chat_display.textCursor()
-            cursor.movePosition(cursor.End)
-            cursor.insertText(chunk)
-            self.chat_display.setTextCursor(cursor)
-            self.chat_display.ensureCursorVisible()
+            self._chat_js(f"appendChunk('{self._js_str(chunk)}')")
 
         def on_done(result: str):
+            self._chat_js("finishAi()")
             if apply:
                 self._apply_ai_changes(result)
             self.statusBar().showMessage("AI response complete")
 
         def on_err(err):
-            self.chat_display.append(
-                f'<span style="color:#FF5555">Error: {err}</span>'
-            )
+            self._chat_js("finishAi()")
+            self._chat_js(f"appendError('{self._js_str(err)}')")
             self.statusBar().showMessage("AI error")
 
         t = run_in_thread(self, chat_fn, on_finished=on_done, on_error=on_err, on_chunk=on_chunk)

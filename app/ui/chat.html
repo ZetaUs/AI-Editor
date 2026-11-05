@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1E1F29;
+    color: #F8F8F2;
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    padding: 10px;
+    overflow-y: auto;
+  }
+  .msg { margin-bottom: 14px; }
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 10px;
+    max-width: 88%;
+    line-height: 1.55;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+  .user-row { display: flex; justify-content: flex-end; }
+  .user-row .bubble {
+    background: #44475A;
+    color: #F8F8F2;
+    border-bottom-right-radius: 2px;
+  }
+  .ai-row { display: flex; justify-content: flex-start; }
+  .ai-row .bubble {
+    background: #282A36;
+    color: #F8F8F2;
+    border: 1px solid #44475A;
+    border-bottom-left-radius: 2px;
+  }
+  .label {
+    font-size: 11px;
+    margin-bottom: 4px;
+    font-weight: 600;
+    opacity: 0.8;
+  }
+  .user-row .label { text-align: right; color: #8BE9FD; }
+  .ai-row .label { color: #FF79C6; }
+  .err .bubble { border-color: #FF5555; color: #FF5555; }
+  .status-msg {
+    text-align: center;
+    font-size: 12px;
+    opacity: 0.5;
+    padding: 6px 0;
+  }
+  .stream-cursor::after {
+    content: '▋';
+    color: #FF79C6;
+    animation: blink 0.8s steps(2) infinite;
+  }
+  @keyframes blink { to { opacity: 0; } }
+  .empty-hint {
+    text-align: center;
+    padding: 40px 10px;
+    color: #6272A4;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div id="chat"><div class="empty-hint">AI Chat 面板<br><span style="opacity:0.6">输入问题开始对话</span></div></div>
+<script>
+var chat = document.getElementById('chat');
+var emptyHint = chat.querySelector('.empty-hint');
+var currentAi = null;
+
+function _ensureNotEmpty() {
+  if (emptyHint) { emptyHint.remove(); emptyHint = null; }
+}
+
+function appendUser(text) {
+  _ensureNotEmpty();
+  var row = document.createElement('div');
+  row.className = 'msg user-row';
+  row.innerHTML = '<div><div class="label">You</div><div class="bubble"></div></div>';
+  row.querySelector('.bubble').textContent = text;
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function startAi() {
+  _ensureNotEmpty();
+  var row = document.createElement('div');
+  row.className = 'msg ai-row';
+  row.innerHTML = '<div><div class="label">AI</div><div class="bubble stream-cursor"></div></div>';
+  chat.appendChild(row);
+  currentAi = row.querySelector('.bubble');
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function appendChunk(chunk) {
+  if (!currentAi) startAi();
+  currentAi.textContent += chunk;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function finishAi() {
+  if (currentAi) {
+    currentAi.classList.remove('stream-cursor');
+    currentAi = null;
+  }
+}
+
+function appendSystem(text) {
+  _ensureNotEmpty();
+  var row = document.createElement('div');
+  row.className = 'msg status-msg';
+  row.textContent = text;
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function appendError(text) {
+  _ensureNotEmpty();
+  var row = document.createElement('div');
+  row.className = 'msg ai-row err';
+  row.innerHTML = '<div><div class="label">Error</div><div class="bubble"></div></div>';
+  row.querySelector('.bubble').textContent = text;
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function clearAll() {
+  chat.innerHTML = '<div class="empty-hint">AI Chat 面板<br><span style="opacity:0.6">输入问题开始对话</span></div>';
+  emptyHint = chat.querySelector('.empty-hint');
+  currentAi = null;
+}
+</script>
+</body>
+</html>
