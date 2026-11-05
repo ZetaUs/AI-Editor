@@ -15,7 +15,6 @@ if errorlevel 1 (
     echo [ERROR] Not inside a Git repository.
     echo         Please run: git init
     echo         then add remote: git remote add origin ^<url^>
-    pause
     exit /b 1
 )
 
@@ -24,7 +23,6 @@ for /f "usebackq delims=" %%i in (`git remote get-url origin`) do set REMOTE_URL
 if "%REMOTE_URL%"=="" (
     echo [ERROR] Remote 'origin' not configured.
     echo         Run: git remote add origin ^<url^>
-    pause
     exit /b 1
 )
 echo [INFO] Remote: %REMOTE_URL%
@@ -43,7 +41,6 @@ for /f "usebackq delims=" %%i in (`git status --porcelain`) do set HAS_CHANGES=1
 if %HAS_CHANGES%==0 (
     echo [SKIP] No changes detected. Nothing to commit.
     echo.
-    pause
     exit /b 0
 )
 
@@ -55,7 +52,6 @@ echo [1/3] git add . ...
 git add .
 if errorlevel 1 (
     echo [ERROR] git add failed!
-    pause
     exit /b 1
 )
 echo       OK.
@@ -70,7 +66,6 @@ echo [2/3] git commit -m "%COMMIT_MSG%" ...
 git commit -m "%COMMIT_MSG%"
 if errorlevel 1 (
     echo [ERROR] git commit failed!
-    pause
     exit /b 1
 )
 echo       OK.
@@ -92,7 +87,6 @@ if %PUSH_ERR% neq 0 (
     echo   - No push permission:         check GitHub SSH key or PAT token
     echo   - Network issue:              check internet or proxy settings
     echo.
-    pause
     exit /b %PUSH_ERR%
 )
 
@@ -102,5 +96,4 @@ echo ========================================
 echo   Done! Push successful.
 echo ========================================
 echo.
-pause
 endlocal

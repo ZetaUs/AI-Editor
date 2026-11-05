@@ -480,13 +480,9 @@ class MainWindow(QMainWindow):
     def _apply_ai_changes(self, ai_response: str):
         ops = extract_file_ops(ai_response)
         if not ops:
-            self.chat_display.append(
-                '<span style="color:#FFB86C">No file operations found in AI response.</span>'
-            )
+            self._chat_js("appendSystem('No file operations found in AI response.')")
             return
-        self.chat_display.append(
-            f'<span style="color:#50FA7B">Applying {len(ops)} change(s)...</span>'
-        )
+        self._chat_js(f"appendSystem('Applying {len(ops)} change(s)...')")
         for op in ops:
             action = op.get("action", "").lower()
             rel_path = op.get("path", "")
@@ -504,9 +500,7 @@ class MainWindow(QMainWindow):
                     self.history.record_create(rel_path)
                 abs_path.parent.mkdir(parents=True, exist_ok=True)
                 abs_path.write_text(content, encoding="utf-8")
-                self.chat_display.append(
-                    f'  <span style="color:#50FA7B">[created]</span> {rel_path}'
-                )
+                self._chat_js(f"appendSystem('[created] {self._js_str(rel_path)}')")
             elif action == "modify":
                 if abs_path.exists():
                     self.history.record_modify(
@@ -518,9 +512,7 @@ class MainWindow(QMainWindow):
                     self.history.record_create(rel_path)
                 abs_path.parent.mkdir(parents=True, exist_ok=True)
                 abs_path.write_text(content, encoding="utf-8")
-                self.chat_display.append(
-                    f'  <span style="color:#F1FA8C">[modified]</span> {rel_path}'
-                )
+                self._chat_js(f"appendSystem('[modified] {self._js_str(rel_path)}')")
             elif action == "delete":
                 if abs_path.exists():
                     self.history.record_delete(
@@ -528,13 +520,9 @@ class MainWindow(QMainWindow):
                         abs_path.read_text(encoding="utf-8", errors="replace"),
                     )
                     abs_path.unlink()
-                self.chat_display.append(
-                    f'  <span style="color:#FF5555">[deleted]</span> {rel_path}'
-                )
+                self._chat_js(f"appendSystem('[deleted] {self._js_str(rel_path)}')")
             else:
-                self.chat_display.append(
-                    f'  <span style="color:#F1FA8C">[unknown action]</span> {action}'
-                )
+                self._chat_js(f"appendSystem('[unknown action] {self._js_str(action)}')")
 
         self.file_tree.refresh()
         for i in range(self.tabs.count()):
