@@ -2,15 +2,23 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
   body {
     background: #1E1F29;
     color: #F8F8F2;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 14px;
-    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  #chat {
+    flex: 1;
     overflow-y: auto;
+    padding: 10px;
   }
   .msg { margin-bottom: 14px; }
   .bubble {
@@ -61,11 +69,88 @@
     color: #6272A4;
     font-size: 13px;
   }
+  .input-area {
+    padding: 8px 10px;
+    border-top: 1px solid #44475A;
+    background: #1E1F29;
+  }
+  .input-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .input-row input {
+    flex: 1;
+    background: #282A36;
+    color: #F8F8F2;
+    border: 1px solid #44475A;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+  }
+  .input-row input:focus { border-color: #FF79C6; }
+  .input-row input::placeholder { color: #6272A4; }
+  .btn-row { display: flex; gap: 6px; }
+  button {
+    flex: 1;
+    background: #282A36;
+    color: #F8F8F2;
+    border: 1px solid #44475A;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  button:hover { background: #44475A; }
+  button:active { background: #6272A4; }
+  button.primary { background: #FF79C6; color: #282A36; border-color: #FF79C6; font-weight: 600; }
+  button.primary:hover { background: #FF92D0; }
+  button.apply { background: #50FA7B; color: #282A36; border-color: #50FA7B; font-weight: 600; }
+  button.apply:hover { background: #6BFF95; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 </head>
 <body>
 <div id="chat"><div class="empty-hint">AI Chat 面板<br><span style="opacity:0.6">输入问题开始对话</span></div></div>
+<div class="input-area">
+  <div class="input-row">
+    <input id="msgInput" type="text" placeholder="Ask AI... (Enter to send)" autocomplete="off">
+  </div>
+  <div class="btn-row">
+    <button class="primary" id="btnSend">Send</button>
+    <button class="apply" id="btnApply">Apply Changes</button>
+    <button id="btnClear">Clear</button>
+  </div>
+</div>
+
 <script>
+var pyapi = null;
+
+new QWebChannel(qt.webChannelTransport, function(channel) {
+  pyapi = channel.objects.pyapi;
+  document.getElementById('btnSend').onclick = function() {
+    var v = document.getElementById('msgInput').value;
+    if (v.trim()) pyapi.sendChat(v, false);
+  };
+  document.getElementById('btnApply').onclick = function() {
+    var v = document.getElementById('msgInput').value;
+    if (v.trim()) pyapi.sendChat(v, true);
+  };
+  document.getElementById('btnClear').onclick = function() {
+    if (pyapi) pyapi.clearChat();
+    clearAll();
+  };
+  document.getElementById('msgInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      document.getElementById('btnSend').click();
+    }
+  });
+});
+
 var chat = document.getElementById('chat');
 var emptyHint = chat.querySelector('.empty-hint');
 var currentAi = null;
@@ -130,6 +215,13 @@ function clearAll() {
   chat.innerHTML = '<div class="empty-hint">AI Chat 面板<br><span style="opacity:0.6">输入问题开始对话</span></div>';
   emptyHint = chat.querySelector('.empty-hint');
   currentAi = null;
+}
+
+function getInputAndClear() {
+  var el = document.getElementById('msgInput');
+  var v = el.value;
+  el.value = '';
+  return v;
 }
 </script>
 </body>

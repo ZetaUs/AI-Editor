@@ -1,11 +1,12 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize, QUrl
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize, QUrl, Slot
 from PySide6.QtGui import (
     QAction, QKeySequence, QFont, QColor, QPalette, QIcon, QPainter, QPixmap,
 )
 from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
     QApplication,
@@ -81,6 +82,20 @@ def run_in_thread(parent, fn, on_finished=None, on_error=None, on_chunk=None):
     thread.finished.connect(lambda: parent._cleanup_thread(thread))
     thread.start()
     return thread
+
+
+class _ChatApi(QObject):
+    def __init__(self, window, parent=None):
+        super().__init__(parent)
+        self._window = window
+
+    @Slot(str, bool)
+    def sendChat(self, text: str, apply: bool):
+        self._window._send_chat_from_js(text, apply)
+
+    @Slot()
+    def clearChat(self):
+        pass
 
 
 class MainWindow(QMainWindow):
@@ -164,35 +179,13 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
             }
         """)
+        self._chat_channel = QWebChannel(self.chat_view.page())
+        self._chat_api = _ChatApi(self)
+        self._chat_channel.registerObject("pyapi", self._chat_api)
+        self.chat_view.page().setWebChannel(self._chat_channel)
         chat_html_path = UI_DIR / "chat.html"
         self.chat_view.setUrl(QUrl.fromLocalFile(str(chat_html_path)))
         right_layout.addWidget(self.chat_view, 1)
-
-        self.chat_input = QLineEdit()
-        self.chat_input.setPlaceholderText("Ask AI... (Enter to send)")
-        self.chat_input.setStyleSheet("""
-            QLineEdit {
-                background: #1E1F29; color: #F8F8F2;
-                border: 1px solid #44475A; border-radius: 6px;
-                padding: 8px;
-            }
-        """)
-        self.chat_input.returnPressed.connect(self._send_chat)
-        right_layout.addWidget(self.chat_input)
-
-        btn_row = QHBoxLayout()
-        self.btn_send = QPushButton("Send")
-        self.btn_apply = QPushButton("Apply Changes")
-        self.btn_apply.setIcon(svg_icon("bolt.svg"))
-        self.btn_apply.setIconSize(QSize(16, 16))
-        self.btn_clear = QPushButton("Clear Chat")
-        self.btn_send.clicked.connect(self._send_chat)
-        self.btn_apply.clicked.connect(lambda: self._send_chat(apply=True))
-        self.btn_clear.clicked.connect(lambda: self.chat_view.page().runJavaScript("clearAll()"))
-        btn_row.addWidget(self.btn_send)
-        btn_row.addWidget(self.btn_apply)
-        btn_row.addWidget(self.btn_clear)
-        right_layout.addLayout(btn_row)
 
         splitter.addWidget(right)
         splitter.setSizes([250, 650, 400])
@@ -428,11 +421,10 @@ class MainWindow(QMainWindow):
     def _js_str(self, s: str) -> str:
         return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
 
-    def _send_chat(self, apply: bool = False):
-        text = self.chat_input.text().strip()
-        if not text:
+    def _send_chat_from_js(self, text: str, apply: bool = False):
+        if not text or not text.strip():
             return
-        self.chat_input.clear()
+        text = text.strip()
 
         self._chat_js(f"appendUser('{self._js_str(text)}')")
         self._chat_js("startAi()")
