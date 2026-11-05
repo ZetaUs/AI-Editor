@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize, QUrl
 from PySide6.QtGui import (
-    QAction, QKeySequence, QFont, QColor, QPalette, QIcon, QPainter,
+    QAction, QKeySequence, QFont, QColor, QPalette, QIcon, QPainter, QPixmap,
 )
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWebEngineWidgets import QWebEngineView
