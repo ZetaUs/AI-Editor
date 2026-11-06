@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import threading
 
 from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize, QUrl, Slot
 from PySide6.QtGui import (
@@ -60,27 +61,38 @@ class Worker(QObject):
     def __init__(self, fn):
         super().__init__()
         self._fn = fn
+        print(f"[DEBUG] Worker.__init__ done, fn={fn}")
 
-    def run(self):
+    def do_work(self):
+        print(f"[DEBUG] Worker.do_work CALLED! thread={threading.current_thread().name}")
         try:
-            result = self._fn(on_chunk=lambda c: self.chunk.emit(c))
+            def _emit(c):
+                print(f"[DEBUG] Worker._emit: {repr(c[:30])}")
+                self.chunk.emit(c)
+            result = self._fn(on_chunk=_emit)
+            print(f"[DEBUG] Worker.do_work finished, result len={len(str(result))}")
             self.finished.emit(result)
         except Exception as e:
             import traceback
+            print(f"[DEBUG] Worker error: {e}")
+            print(traceback.format_exc())
             self.error.emit(f"{e}\n{traceback.format_exc()}")
 
 
 def run_in_thread(parent, fn, on_finished=None, on_error=None, on_chunk=None):
+    print(f"[DEBUG] run_in_thread called")
     thread = QThread(parent)
     worker = Worker(fn)
     worker.moveToThread(thread)
-    thread.started.connect(worker.run)
+    thread.started.connect(worker.do_work)
     worker.finished.connect(lambda r: (on_finished(r) if on_finished else None, thread.quit()))
     worker.error.connect(lambda e: (on_error(e) if on_error else None, thread.quit()))
     worker.chunk.connect(lambda c: on_chunk(c) if on_chunk else None)
     thread.finished.connect(worker.deleteLater)
     thread.finished.connect(lambda: parent._cleanup_thread(thread))
+    print(f"[DEBUG] run_in_thread starting thread...")
     thread.start()
+    print(f"[DEBUG] run_in_thread started, thread.isRunning={thread.isRunning()}")
     return thread
 
 
@@ -91,6 +103,8 @@ class _ChatApi(QObject):
 
     @Slot(str, bool)
     def sendChat(self, text: str, apply: bool):
+        import threading
+        print(f"[DEBUG] _ChatApi.sendChat text={repr(text[:30])} apply={apply} thread={threading.current_thread().name}")
         self._window._send_chat_from_js(text, apply)
 
     @Slot()
@@ -184,6 +198,8 @@ class MainWindow(QMainWindow):
         self._chat_channel.registerObject("pyapi", self._chat_api)
         self.chat_view.page().setWebChannel(self._chat_channel)
         chat_html_path = UI_DIR / "chat.html"
+        self.chat_view.loadStarted.connect(lambda: print("[DEBUG] chat loadStarted"))
+        self.chat_view.loadFinished.connect(lambda ok: print(f"[DEBUG] chat loadFinished: {ok}"))
         self.chat_view.setUrl(QUrl.fromLocalFile(str(chat_html_path)))
         right_layout.addWidget(self.chat_view, 1)
 
@@ -416,6 +432,7 @@ class MainWindow(QMainWindow):
         self.output.append(f'<span style="color:{color}">{text}</span>')
 
     def _chat_js(self, js: str):
+        print(f"[DEBUG] _chat_js: {js[:80]}")
         self.chat_view.page().runJavaScript(js)
 
     def _js_str(self, s: str) -> str:
@@ -452,6 +469,8 @@ class MainWindow(QMainWindow):
             return self.ai.chat_stream(messages, on_chunk=on_chunk)
 
         def on_chunk(chunk: str):
+            import threading
+            print(f"[DEBUG] on_chunk called, thread={threading.current_thread().name}, chunk={repr(chunk[:30])}")
             self._chat_js(f"appendChunk('{self._js_str(chunk)}')")
 
         def on_done(result: str):

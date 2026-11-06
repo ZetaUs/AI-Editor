@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><style>body{background:#1E1F29;color:#F8F8F2;padding:10px}#chat{font-size:14px}</style></head>
+<body><div id="chat">empty</div>
+<script>
+function appendChunk(c){var d=document.createElement('div');d.textContent=c;document.getElementById('chat').appendChild(d);}
+function startAi(){document.getElementById('chat').textContent='AI thinking...';}
+function finishAi(){document.getElementById('chat').textContent+=' [done]';}
+</script></body></html>
