@@ -93,8 +93,6 @@ class _ChatApi(QObject):
 
     @Slot(str, bool)
     def sendChat(self, text: str, apply: bool):
-        import threading
-        print(f"[DEBUG] _ChatApi.sendChat text={repr(text[:30])} apply={apply} thread={threading.current_thread().name}")
         self._window._send_chat_from_js(text, apply)
 
     @Slot()
@@ -188,8 +186,6 @@ class MainWindow(QMainWindow):
         self._chat_channel.registerObject("pyapi", self._chat_api)
         self.chat_view.page().setWebChannel(self._chat_channel)
         chat_html_path = UI_DIR / "chat.html"
-        self.chat_view.loadStarted.connect(lambda: print("[DEBUG] chat loadStarted"))
-        self.chat_view.loadFinished.connect(lambda ok: print(f"[DEBUG] chat loadFinished: {ok}"))
         self.chat_view.setUrl(QUrl.fromLocalFile(str(chat_html_path)))
         right_layout.addWidget(self.chat_view, 1)
 
