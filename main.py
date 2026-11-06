@@ -61,43 +61,29 @@ class Worker(QObject):
     def __init__(self, fn):
         super().__init__()
         self._fn = fn
-        print(f"[DEBUG] Worker.__init__ done, fn={fn}")
 
     def run(self):
-        print(f"[DEBUG] Worker.run CALLED! thread={threading.current_thread().name}")
         try:
-            def _emit(c):
-                print(f"[DEBUG] Worker._emit: {repr(c[:30])}")
-                self.chunk.emit(c)
-            result = self._fn(on_chunk=_emit)
-            print(f"[DEBUG] Worker.run finished, result len={len(str(result))}")
+            result = self._fn(on_chunk=lambda c: self.chunk.emit(c))
             self.finished.emit(result)
         except Exception as e:
             import traceback
-            print(f"[DEBUG] Worker error: {e}")
-            print(traceback.format_exc())
             self.error.emit(f"{e}\n{traceback.format_exc()}")
 
 
 def run_in_thread(parent, fn, on_finished=None, on_error=None, on_chunk=None):
-    print(f"[DEBUG] run_in_thread called")
-    thread = QThread()
     worker = Worker(fn)
-    worker.moveToThread(thread)
-    print(f"[DEBUG] worker thread before start: {worker.thread()}")
-    print(f"[DEBUG] thread object: {thread}")
-    thread.started.connect(worker.run)
-    print(f"[DEBUG] connected started->run")
-    worker.finished.connect(lambda r: (on_finished(r) if on_finished else None, thread.quit()))
-    worker.error.connect(lambda e: (on_error(e) if on_error else None, thread.quit()))
-    worker.chunk.connect(lambda c: on_chunk(c) if on_chunk else None)
-    thread.finished.connect(worker.deleteLater)
-    thread.finished.connect(lambda: parent._cleanup_thread(thread))
-    parent._threads.append(thread)
-    print(f"[DEBUG] run_in_thread starting thread...")
-    thread.start()
-    print(f"[DEBUG] run_in_thread started, thread.isRunning={thread.isRunning()}")
-    return thread
+    if on_finished:
+        worker.finished.connect(on_finished)
+    if on_error:
+        worker.error.connect(on_error)
+    if on_chunk:
+        worker.chunk.connect(on_chunk)
+    import threading as _th
+    t = _th.Thread(target=worker.run, daemon=True)
+    t.start()
+    parent._threads.append(t)
+    return t
 
 
 class _ChatApi(QObject):
