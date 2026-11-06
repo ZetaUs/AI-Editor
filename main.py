@@ -63,14 +63,14 @@ class Worker(QObject):
         self._fn = fn
         print(f"[DEBUG] Worker.__init__ done, fn={fn}")
 
-    def do_work(self):
-        print(f"[DEBUG] Worker.do_work CALLED! thread={threading.current_thread().name}")
+    def run(self):
+        print(f"[DEBUG] Worker.run CALLED! thread={threading.current_thread().name}")
         try:
             def _emit(c):
                 print(f"[DEBUG] Worker._emit: {repr(c[:30])}")
                 self.chunk.emit(c)
             result = self._fn(on_chunk=_emit)
-            print(f"[DEBUG] Worker.do_work finished, result len={len(str(result))}")
+            print(f"[DEBUG] Worker.run finished, result len={len(str(result))}")
             self.finished.emit(result)
         except Exception as e:
             import traceback
@@ -86,8 +86,8 @@ def run_in_thread(parent, fn, on_finished=None, on_error=None, on_chunk=None):
     worker.moveToThread(thread)
     print(f"[DEBUG] worker thread before start: {worker.thread()}")
     print(f"[DEBUG] thread object: {thread}")
-    thread.started.connect(worker.do_work)
-    print(f"[DEBUG] connected started->do_work")
+    thread.started.connect(worker.run)
+    print(f"[DEBUG] connected started->run")
     worker.finished.connect(lambda r: (on_finished(r) if on_finished else None, thread.quit()))
     worker.error.connect(lambda e: (on_error(e) if on_error else None, thread.quit()))
     worker.chunk.connect(lambda c: on_chunk(c) if on_chunk else None)
