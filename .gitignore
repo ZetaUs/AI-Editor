@@ -1,5 +1,6 @@
 #folder
 __pycache__/
+examples/
 History/
 .vscode/
 editor/
