@@ -133,18 +133,18 @@ var pyapi = null;
 new QWebChannel(qt.webChannelTransport, function(channel) {
   pyapi = channel.objects.pyapi;
   document.getElementById('btnSend').onclick = function() {
-    var v = document.getElementById('msgInput').value;
-    if (v.trim()) {
-      pyapi.sendChat(v, false);
-      document.getElementById('msgInput').value = '';
-    }
+    var input = document.getElementById('msgInput');
+    var v = input.value.trim();
+    if (!v) return;
+    input.value = '';
+    if (pyapi) { pyapi.sendChat(v, false); }
   };
   document.getElementById('btnApply').onclick = function() {
-    var v = document.getElementById('msgInput').value;
-    if (v.trim()) {
-      pyapi.sendChat(v, true);
-      document.getElementById('msgInput').value = '';
-    }
+    var input = document.getElementById('msgInput');
+    var v = input.value.trim();
+    if (!v) return;
+    input.value = '';
+    if (pyapi) { pyapi.sendChat(v, true); }
   };
   document.getElementById('btnClear').onclick = function() {
     if (pyapi) pyapi.clearChat();
