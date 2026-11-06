@@ -5,6 +5,10 @@ from PySide6.QtWidgets import QApplication
 
 app = QApplication(sys.argv)
 
+class MainWindow:
+    def __init__(self):
+        self.name = "TestWin"
+
 class Worker(QObject):
     finished = Signal(object)
     error = Signal(str)
@@ -15,49 +19,41 @@ class Worker(QObject):
         self._fn = fn
         print(f"Worker.__init__ ok")
 
-    def do_work(self):
-        print(f"Worker.do_work CALLED! thread={threading.current_thread().name}")
+    def run(self):
+        print(f"Worker.run CALLED!")
         try:
-            def _emit(c):
-                print(f"emit chunk: {repr(c)}")
-                self.chunk.emit(c)
-            result = self._fn(on_chunk=_emit)
-            print(f"Worker.do_work finished")
-            self.finished.emit(result)
+            self._fn()
+            self.finished.emit("DONE")
         except Exception as e:
             import traceback
-            print(f"Worker error: {e}\n{traceback.format_exc()}")
+            print(f"error: {e}\n{traceback.format_exc()}")
             self.error.emit(str(e))
 
-def run_in_thread(fn, on_finished=None, on_error=None, on_chunk=None):
-    print("run_in_thread called")
-    thread = QThread()
-    worker = Worker(fn)
-    worker.moveToThread(thread)
-    print(f"worker.thread() = {worker.thread()}")
-    thread.started.connect(worker.do_work)
-    worker.finished.connect(lambda r: (on_finished(r) if on_finished else None, thread.quit()))
-    worker.error.connect(lambda e: (on_error(e) if on_error else None, thread.quit()))
-    worker.chunk.connect(lambda c: on_chunk(c) if on_chunk else None)
-    thread.finished.connect(worker.deleteLater)
-    print("starting thread...")
-    thread.start()
-    print(f"thread.isRunning={thread.isRunning()}")
-    return thread
+mw = MainWindow()
 
-def my_fn(on_chunk=None):
-    print("my_fn running!")
-    if on_chunk:
-        on_chunk("hello chunk 1")
-        on_chunk("hello chunk 2")
-    import time
-    time.sleep(1)
-    return "DONE"
+def outer():
+    # chat_fn captures mw (like self in main.py)
+    def chat_fn():
+        print(f"chat_fn running, mw.name={mw.name}")
+        import time; time.sleep(0.5)
+        print("chat_fn done")
+    return chat_fn
 
-def on_finished(r):
-    print(f"on_finished: {r}")
+fn = outer()
+print(f"fn = {fn}")
+print(f"fn.__closure__ = {fn.__closure__}")
 
-t = run_in_thread(my_fn, on_finished=on_finished, on_error=lambda e: print(f"ERR: {e}"), on_chunk=lambda c: print(f"MAIN got chunk: {c}"))
+thread = QThread()
+worker = Worker(fn)
+worker.moveToThread(thread)
+print(f"worker.thread() = {worker.thread()}")
+
+thread.started.connect(worker.run)
+worker.finished.connect(lambda r: (print(f"on_finished: {r}"), thread.quit()))
+
+print("starting...")
+thread.start()
+print(f"isRunning={thread.isRunning()}")
 
 QTimer.singleShot(4000, app.quit)
 app.exec()
