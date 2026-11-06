@@ -418,7 +418,6 @@ class MainWindow(QMainWindow):
         self.output.append(f'<span style="color:{color}">{text}</span>')
 
     def _chat_js(self, js: str):
-        print(f"[DEBUG] _chat_js: {js[:80]}")
         self.chat_view.page().runJavaScript(js)
 
     def _js_str(self, s: str) -> str:
@@ -455,8 +454,6 @@ class MainWindow(QMainWindow):
             return self.ai.chat_stream(messages, on_chunk=on_chunk)
 
         def on_chunk(chunk: str):
-            import threading
-            print(f"[DEBUG] on_chunk called, thread={threading.current_thread().name}, chunk={repr(chunk[:30])}")
             self._chat_js(f"appendChunk('{self._js_str(chunk)}')")
 
         def on_done(result: str):
