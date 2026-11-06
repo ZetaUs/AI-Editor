@@ -112,6 +112,7 @@ class MainWindow(QMainWindow):
         self.ai = AIClient()
 
         self._threads: list[QThread] = []
+        self._chat_history: list[dict] = []
 
         self._build_ui()
         self._build_menu()

@@ -134,11 +134,17 @@ new QWebChannel(qt.webChannelTransport, function(channel) {
   pyapi = channel.objects.pyapi;
   document.getElementById('btnSend').onclick = function() {
     var v = document.getElementById('msgInput').value;
-    if (v.trim()) pyapi.sendChat(v, false);
+    if (v.trim()) {
+      pyapi.sendChat(v, false);
+      document.getElementById('msgInput').value = '';
+    }
   };
   document.getElementById('btnApply').onclick = function() {
     var v = document.getElementById('msgInput').value;
-    if (v.trim()) pyapi.sendChat(v, true);
+    if (v.trim()) {
+      pyapi.sendChat(v, true);
+      document.getElementById('msgInput').value = '';
+    }
   };
   document.getElementById('btnClear').onclick = function() {
     if (pyapi) pyapi.clearChat();
