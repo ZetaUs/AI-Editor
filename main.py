@@ -97,7 +97,7 @@ class _ChatApi(QObject):
 
     @Slot()
     def clearChat(self):
-        pass
+        self._window._chat_history.clear()
 
 
 class MainWindow(QMainWindow):
@@ -440,27 +440,37 @@ class MainWindow(QMainWindow):
                 f"```\n{current_editor.toPlainText()}\n```"
             )
 
-        messages = [
-            {"role": "system", "content": (
-                "You are an AI coding assistant. "
-                "You can help write, modify, or explain Python and C++ code. "
-                f"The working directory is {self.workdir}. "
-                "If the user asks to create or modify files, respond with a JSON array of file operations in code blocks like:\n"
-                "```json\n[{\"action\": \"create|modify|delete\", \"path\": \"relative/path\", \"content\": \"file contents\"}]\n```"
-            )},
-            {"role": "user", "content": text + context},
-        ]
+        system_prompt = (
+            "You are an AI coding assistant. "
+            "You can help write, modify, or explain Python and C++ code. "
+            f"The working directory is {self.workdir}. "
+            "If the user asks to create or modify files, respond with a JSON array of file operations in code blocks like:\n"
+            "```json\n[{\"action\": \"create|modify|delete\", \"path\": \"relative/path\", \"content\": \"file contents\"}]\n```"
+        )
+
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(self._chat_history)
+        messages.append({"role": "user", "content": text + context})
+
+        self._chat_history.append({"role": "user", "content": text})
+
+        ai_response_parts: list[str] = []
 
         def chat_fn(on_chunk=None):
             return self.ai.chat_stream(messages, on_chunk=on_chunk)
 
         def on_chunk(chunk: str):
+            ai_response_parts.append(chunk)
             self._chat_js(f"appendChunk('{self._js_str(chunk)}')")
 
         def on_done(result: str):
             self._chat_js("finishAi()")
+            full_response = "".join(ai_response_parts) or result
+            self._chat_history.append({"role": "assistant", "content": full_response})
+            if len(self._chat_history) > 20:
+                self._chat_history = self._chat_history[-20:]
             if apply:
-                self._apply_ai_changes(result)
+                self._apply_ai_changes(full_response)
             self.statusBar().showMessage("AI response complete")
 
         def on_err(err):
